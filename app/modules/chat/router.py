@@ -24,6 +24,9 @@ router = APIRouter(
 )
 
 
+
+
+
 @router.post(
     "/completions",
 )
@@ -33,6 +36,8 @@ async def chat_completion(
         get_chat_service,
     ),
 ):
+    
+    
 
     result = await service.chat(
         request,

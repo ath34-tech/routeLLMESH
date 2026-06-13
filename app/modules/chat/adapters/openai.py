@@ -13,15 +13,15 @@ class OpenAIAdapter(BaseAdapter):
         request: ChatRequest,
     ):
 
-        url = f"{provider.base_url}/chat/completions"
+        url = f"{provider['base_url']}/chat/completions"
 
         headers = {
-            "Authorization": f"Bearer {provider.api_key}",
+            "Authorization": f"Bearer {provider['api_key']}",
             "Content-Type": "application/json",
         }
 
         payload = {
-            "model": model.model_name,
+            "model": model["model_name"],
             "messages": [
                 message.model_dump(
                     exclude_none=True
@@ -62,7 +62,7 @@ class OpenAIAdapter(BaseAdapter):
                 headers=headers,
                 json=payload,
             )
-
+        print(response.json())
         response.raise_for_status()
 
         return response.json()

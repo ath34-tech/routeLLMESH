@@ -17,7 +17,7 @@ from app.core.redis.keys import RedisKeys
 from app.modules.model_vault.model.repository import ModelRepository
 from app.modules.model_vault.provider.repository import ProviderRepository
 
-
+from app.modules.chat.routing import RoutingEngine
 @asynccontextmanager
 async def lifespan(app: FastAPI):
 
@@ -57,7 +57,8 @@ async def lifespan(app: FastAPI):
     logger.info("HTTP Client initialized.")
 
     redis = RedisRepository()
-
+    RoutingEngine.initialize(redis)
+    logger.info("RoutingEngine initialized with Redis.")
     start = time.perf_counter()
 
     try:
