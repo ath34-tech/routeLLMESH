@@ -7,6 +7,7 @@ from app.modules.model_vault.provider.router import (
 from app.modules.model_vault.model.router import (
     router as model_router,
 )
+from app.modules.chat.router import router as chat_router
 
 
 api_v1_router = APIRouter(
@@ -20,3 +21,5 @@ api_v1_router.include_router(
 api_v1_router.include_router(
     model_router
 )
+
+api_v1_router.include_router(chat_router)
