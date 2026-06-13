@@ -66,3 +66,69 @@ class OpenAIAdapter(BaseAdapter):
         response.raise_for_status()
 
         return response.json()
+    
+
+    async def stream_chat(
+        self,
+        provider,
+        model,
+        request: ChatRequest,
+    ):
+
+        url = f"{provider['base_url']}/chat/completions"
+
+        headers = {
+            "Authorization": f"Bearer {provider['api_key']}",
+            "Content-Type": "application/json",
+        }
+
+        payload = {
+            "model": model["model_name"],
+            "messages": [
+                message.model_dump(
+                    exclude_none=True
+                )
+                for message in request.messages
+            ],
+            "temperature": request.temperature,
+            "top_p": request.top_p,
+            "stream": True,
+            "tools": request.tools,
+            "tool_choice": request.tool_choice,
+            "response_format": (
+                request.response_format.model_dump()
+                if request.response_format
+                else None
+            ),
+            "max_completion_tokens": request.max_completion_tokens,
+            "stop": request.stop,
+            "seed": request.seed,
+        }
+
+        payload = {
+            key: value
+            for key, value in payload.items()
+            if value is not None
+        }
+
+        payload.update(
+            request.parameters
+        )
+
+        async with httpx.AsyncClient(
+            timeout=None,
+        ) as client:
+
+            async with client.stream(
+                method="POST",
+                url=url,
+                headers=headers,
+                json=payload,
+            ) as response:
+
+                response.raise_for_status()
+
+                async for chunk in response.aiter_bytes():
+
+                    yield chunk
+

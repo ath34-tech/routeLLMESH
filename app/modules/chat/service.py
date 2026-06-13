@@ -134,6 +134,14 @@ class ChatService:
         # Step 4: Execute
         # -----------------------------
 
+        if request.stream:
+
+            return adapter.stream_chat(
+                provider=provider,
+                model=model,
+                request=request,
+            )
+
         response = await adapter.chat(
             provider=provider,
             model=model,

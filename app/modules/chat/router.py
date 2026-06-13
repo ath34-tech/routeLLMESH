@@ -1,9 +1,8 @@
+
 from fastapi import APIRouter
 from fastapi import Depends
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.database.session import get_db
+from fastapi.responses import StreamingResponse
 
 from app.modules.chat.schemas import (
     ChatRequest,
@@ -27,7 +26,6 @@ router = APIRouter(
 
 @router.post(
     "/completions",
-    response_model=ChatResponse,
 )
 async def chat_completion(
     request: ChatRequest,
@@ -36,6 +34,15 @@ async def chat_completion(
     ),
 ):
 
-    return await service.chat(
+    result = await service.chat(
         request,
     )
+
+    if request.stream:
+
+        return StreamingResponse(
+            result,
+            media_type="text/event-stream",
+        )
+
+    return result
