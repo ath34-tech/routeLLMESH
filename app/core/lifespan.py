@@ -1,0 +1,91 @@
+from contextlib import asynccontextmanager
+
+import httpx
+
+from fastapi import FastAPI
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+
+from app.core.config import settings
+from app.core.logging import logger
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+
+    logger.info("===================================")
+    logger.info("Starting RouteLM")
+    logger.info("===================================")
+
+    engine = create_async_engine(
+        settings.DATABASE_URL,
+        echo=settings.DEBUG,
+        pool_pre_ping=True,
+    )
+
+    app.state.engine = engine
+
+    try:
+
+        async with engine.begin() as conn:
+
+            await conn.execute(text("SELECT 1"))
+
+        logger.info("Database connected successfully.")
+
+    except Exception:
+
+        logger.exception("Database connection failed.")
+
+        raise
+
+    http_client = httpx.AsyncClient(
+        timeout=settings.REQUEST_TIMEOUT,
+        follow_redirects=True,
+        http2=True,
+    )
+
+    app.state.http_client = http_client
+
+    logger.info("HTTP Client initialized.")
+
+    app.state.provider_cache = {}
+
+    app.state.model_cache = {}
+
+    logger.info("Provider cache initialized.")
+
+    logger.info("Model cache initialized.")
+
+    # -----------------------------
+    # Future Startup Tasks
+    # -----------------------------
+    #
+    # Load Providers
+    #
+    # Load Models
+    #
+    # Populate provider_cache
+    #
+    # Populate model_cache
+    #
+    # Register Prometheus Metrics
+    #
+    # Initialize Redis
+    #
+    # Health Check Providers
+    #
+    # -----------------------------
+
+    logger.info("RouteLM Ready 🚀")
+
+    yield
+
+    logger.info("Shutting down RouteLM...")
+
+    await http_client.aclose()
+
+    await engine.dispose()
+
+    logger.info("Shutdown complete.")
