@@ -18,6 +18,11 @@ class Settings(BaseSettings):
 
     DATABASE_URL: str
 
+    REDIS_HOST: str
+
+    REDIS_PORT: int
+
+
     REQUEST_TIMEOUT: int = 120
 
     MAX_RETRIES: int = 2

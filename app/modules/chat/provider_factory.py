@@ -2,6 +2,13 @@ from app.modules.chat.adapters.openai import (
     OpenAIAdapter,
 )
 
+PROVIDER_ADAPTERS = {
+    "openai": OpenAIAdapter,
+    # Future adapters
+    # "anthropic": AnthropicAdapter,
+    # "gemini": GeminiAdapter,
+    # "ollama": OllamaAdapter,
+}
 
 class ProviderFactory:
 
@@ -10,11 +17,11 @@ class ProviderFactory:
         adapter_name: str,
     ):
 
-        adapter_name = adapter_name.lower()
+        adapter_name = adapter_name.lower() 
+        if adapter_name in PROVIDER_ADAPTERS:
+            return PROVIDER_ADAPTERS[adapter_name]()
 
-        if adapter_name == "openai":
 
-            return OpenAIAdapter()
 
         # Future adapters
 

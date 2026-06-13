@@ -1,5 +1,9 @@
+
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.redis.keys import RedisKeys
+from app.core.redis.repository import RedisRepository
 
 from .repository import ProviderRepository
 from .schemas import ProviderCreate
@@ -14,6 +18,7 @@ class ProviderService:
     ):
 
         self.repository = ProviderRepository(db)
+        self.redis = RedisRepository()
 
     async def create(
         self,
@@ -31,9 +36,23 @@ class ProviderService:
                 detail="Provider already exists.",
             )
 
-        return await self.repository.create(
+        entity = await self.repository.create(
             provider
         )
+
+        await self.redis.set_json(
+            RedisKeys.provider(entity.id),
+            {
+                "id": entity.id,
+                "name": entity.name,
+                "api_key": entity.api_key,
+                "base_url": entity.base_url,
+                "adapter": entity.adapter,
+                "enabled": entity.enabled,
+            },
+        )
+
+        return entity
 
     async def get_by_id(
         self,
@@ -74,10 +93,24 @@ class ProviderService:
                 detail="Provider not found.",
             )
 
-        return await self.repository.update(
+        updated = await self.repository.update(
             provider,
             data,
         )
+
+        await self.redis.set_json(
+            RedisKeys.provider(updated.id),
+            {
+                "id": updated.id,
+                "name": updated.name,
+                "api_key": updated.api_key,
+                "base_url": updated.base_url,
+                "adapter": updated.adapter,
+                "enabled": updated.enabled,
+            },
+        )
+
+        return updated
 
     async def delete(
         self,
@@ -97,6 +130,10 @@ class ProviderService:
 
         await self.repository.delete(
             provider
+        )
+
+        await self.redis.delete(
+            RedisKeys.provider(provider.id)
         )
 
         return {
