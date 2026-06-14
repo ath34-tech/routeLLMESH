@@ -536,6 +536,47 @@ Try Candidate #1
 * Production-oriented architecture
 
 ---
+```markdown
+# Screenshots
+
+## Swagger API Documentation
+
+The RouteLLMESH gateway exposes an OpenAI-compatible REST API with support for intelligent routing, streaming, and automatic fallback.
+
+<p align="center">
+    <img src="docs/routeLLMesh1.png" width="1000">
+</p>
+
+---
+
+## Intelligent Routing
+
+Requests specifying `"model": "auto"` are analyzed by the routing engine, scored against the available model pool, and executed using the highest-ranked candidate according to the selected routing policy.
+
+<p align="center">
+    <img src="docs/routeLLMesh2.png" width="1000">
+</p>
+
+---
+
+## Model & Provider Management
+
+RouteLLMESH maintains a centralized model registry and provider abstraction layer, enabling seamless addition of new providers without changing application logic.
+
+<p align="center">
+    <img src="docs/routeLLMesh3.png" width="1000">
+</p>
+
+---
+
+## Automatic Fallback & Resilience
+
+When the preferred model fails, RouteLLMESH automatically retries the next ranked candidate, providing transparent failover and improved reliability without client-side intervention.
+
+<p align="center">
+    <img src="docs/routeLLMesh4.png" width="1000">
+</p>
+```
 
 # Example Request
 
