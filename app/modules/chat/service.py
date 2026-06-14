@@ -8,7 +8,9 @@ from app.modules.model_vault.provider.repository import ProviderRepository
 from app.modules.chat.provider_factory import ProviderFactory
 from app.modules.chat.normalizer import ResponseNormalizer
 from app.modules.chat.routing import RoutingEngine, RoutingOutcome
+import logging
 
+logger = logging.getLogger(__name__)
 class ChatService:
 
     def __init__(
@@ -28,172 +30,168 @@ class ChatService:
         # ROUTING: Get optimal model
         # ============================================
         
-        selected_model = await RoutingEngine.route(request)
-        request.model = selected_model
-        
         # ============================================
-        # Step 1: Get model from Redis
+        # ROUTING
         # ============================================
 
-        model = await self.redis.get_json(
-            RedisKeys.model(request.model)
-        )
+        routing_result = await RoutingEngine.route(request)
 
-        if model is None:
-            db_model = await self.model_repository.get_enabled_by_name(
-                request.model
-            )
+        last_exception = None
 
-            if db_model is None:
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"Model '{request.model}' not found.",
+        for candidate in routing_result.candidate_models:
+
+            request.model = candidate.model_name
+
+            try:
+
+                # ============================================
+                # Model
+                # ============================================
+
+                model = await self.redis.get_json(
+                    RedisKeys.model(candidate.model_name)
                 )
 
-            model = {
-                "id": db_model.id,
-                "provider_id": db_model.provider_id,
-                "model_name": db_model.model_name,
-                "display_name": db_model.display_name,
-                "context_window": db_model.context_window,
-                "input_cost": db_model.input_cost,
-                "output_cost": db_model.output_cost,
-                "priority": db_model.priority,
-                "fallback_order": db_model.fallback_order,
-                "supports_stream": db_model.supports_stream,
-                "supports_tools": db_model.supports_tools,
-                "supports_vision": db_model.supports_vision,
-                "supports_reasoning": db_model.supports_reasoning,
-                "enabled": db_model.enabled,
-            }
+                if model is None:
 
-            await self.redis.set_json(
-                RedisKeys.model(request.model),
-                model,
-            )
+                    db_model = (
+                        await self.model_repository.get_enabled_by_name(
+                            candidate.model_name
+                        )
+                    )
 
-        # ============================================
-        # Step 2: Get provider from Redis
-        # ============================================
+                    if db_model is None:
+                        continue
 
-        provider = await self.redis.get_json(
-            RedisKeys.provider(model["provider_id"])
-        )
+                    model = {
+                        "id": db_model.id,
+                        "provider_id": db_model.provider_id,
+                        "model_name": db_model.model_name,
+                        "display_name": db_model.display_name,
+                        "context_window": db_model.context_window,
+                        "input_cost": db_model.input_cost,
+                        "output_cost": db_model.output_cost,
+                        "priority": db_model.priority,
+                        "fallback_order": db_model.fallback_order,
+                        "supports_stream": db_model.supports_stream,
+                        "supports_tools": db_model.supports_tools,
+                        "supports_vision": db_model.supports_vision,
+                        "supports_reasoning": db_model.supports_reasoning,
+                        "enabled": db_model.enabled,
+                    }
 
-        if provider is None:
-            db_provider = await self.provider_repository.get_by_id(
-                model["provider_id"]
-            )
+                    await self.redis.set_json(
+                        RedisKeys.model(candidate.model_name),
+                        model,
+                    )
 
-            if db_provider is None:
-                raise HTTPException(
-                    status_code=404,
-                    detail="Provider not found.",
+                # ============================================
+                # Provider
+                # ============================================
+
+                provider = await self.redis.get_json(
+                    RedisKeys.provider(model["provider_id"])
                 )
 
-            provider = {
-                "id": db_provider.id,
-                "name": db_provider.name,
-                "api_key": db_provider.api_key,
-                "base_url": db_provider.base_url,
-                "adapter": db_provider.adapter,
-                "enabled": db_provider.enabled,
-            }
+                if provider is None:
 
-            await self.redis.set_json(
-                RedisKeys.provider(db_provider.id),
-                provider,
-            )
+                    db_provider = (
+                        await self.provider_repository.get_by_id(
+                            model["provider_id"]
+                        )
+                    )
 
-        # ============================================
-        # Step 3: Get Adapter
-        # ============================================
+                    if db_provider is None:
+                        continue
 
-        adapter = ProviderFactory.get_adapter(provider["adapter"])
+                    provider = {
+                        "id": db_provider.id,
+                        "name": db_provider.name,
+                        "api_key": db_provider.api_key,
+                        "base_url": db_provider.base_url,
+                        "adapter": db_provider.adapter,
+                        "enabled": db_provider.enabled,
+                    }
 
-        # ============================================
-        # Step 4: Execute (Stream or Non-stream)
-        # ============================================
+                    await self.redis.set_json(
+                        RedisKeys.provider(db_provider.id),
+                        provider,
+                    )
 
-        try:
-            if request.stream:
-                return adapter.stream_chat(
+                # ============================================
+                # Adapter
+                # ============================================
+
+                adapter = ProviderFactory.get_adapter(
+                    provider["adapter"]
+                )
+
+                logger.info(
+                    "Trying model=%s score=%.2f",
+                    candidate.model_name,
+                    candidate.score,
+                )
+
+                # ============================================
+                # Streaming
+                # ============================================
+
+                if request.stream:
+
+                    return adapter.stream_chat(
+                        provider=provider,
+                        model=model,
+                        request=request,
+                    )
+
+                # ============================================
+                # Execute
+                # ============================================
+
+                response = await adapter.chat(
                     provider=provider,
                     model=model,
                     request=request,
                 )
 
-            response = await adapter.chat(
-                provider=provider,
-                model=model,
-                request=request,
-            )
+                normalized = ResponseNormalizer.normalize(
+                    response
+                )
 
-            # ============================================
-            # Step 5: Normalize Response
-            # ============================================
+                logger.info(
+                    "Model %s succeeded",
+                    candidate.model_name,
+                )
 
-            normalized_response = ResponseNormalizer.normalize(response)
-            
-            # ============================================
-            # OBSERVABILITY: Log routing outcome for learning
-            # ============================================
-            
-            latency_ms = int((time.time() - start_time) * 1000)
-            
-            # Calculate cost
-            input_tokens = request.estimate_tokens()
-            output_tokens = self._estimate_output_tokens(normalized_response)
-            cost = (
-                input_tokens * model["input_cost"] +
-                output_tokens * model["output_cost"]
-            )
-            
-            # Get complexity score from routing decision
-            routing_decision = await self.redis.get_json(
-                f"routing:decision:{request.id}"
-            )
-            complexity_score = (
-                routing_decision.get("complexity_score")
-                if routing_decision else 5.0
-            )
-            
-            # Create outcome
-            outcome = RoutingOutcome(
-                request_id=request.id,
-                selected_model=selected_model,
-                routing_policy=request.routing_policy or "complexity",
-                user_satisfaction=True,  # Could be from user feedback
-                latency_ms=latency_ms,
-                cost_usd=cost,
-                complexity_score=complexity_score,
-                tokens_input=input_tokens,
-                tokens_output=output_tokens,
-            )
-            
-            # Let routers learn from outcome (Thompson Sampling updates)
-            await RoutingEngine.observe_outcome(request.id, outcome)
-            
-            return normalized_response
+                return normalized
 
-        except Exception as e:
-            # Log failed request for observability
-            latency_ms = int((time.time() - start_time) * 1000)
-            
-            outcome = RoutingOutcome(
-                request_id=request.id,
-                selected_model=selected_model,
-                routing_policy=request.routing_policy or "complexity",
-                user_satisfaction=False,  # Failed request
-                latency_ms=latency_ms,
-                cost_usd=0,
-                complexity_score=5.0,
-            )
-            
-            await RoutingEngine.observe_outcome(request.id, outcome)
-            
-            raise e
-    
+            except Exception as exc:
+
+                logger.warning(
+                    "Model %s failed. Trying next candidate.",
+                    candidate.model_name,
+                )
+
+                last_exception = exc
+
+                # Future:
+                #
+                # await health_manager.mark_unhealthy(
+                #     candidate.model_name,
+                #     ttl=300,
+                # )
+
+                continue
+
+        # ============================================
+        # All candidates exhausted
+        # ============================================
+
+        raise HTTPException(
+            status_code=503,
+            detail="No available model could satisfy the request.",
+        ) from last_exception
+
     @staticmethod
     def _estimate_output_tokens(response: dict) -> int:
         """Estimate output tokens from response."""
