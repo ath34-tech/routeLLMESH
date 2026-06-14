@@ -1,11 +1,8 @@
 # RouteLLMESH
 ![Python](https://img.shields.io/badge/Python-3.12-blue)
-
 ![FastAPI](https://img.shields.io/badge/FastAPI-Latest-green)
 ![Redis](https://img.shields.io/badge/Redis-Cache-red)
-
 ![Docker](https://img.shields.io/badge/Docker-Ready-blue)
-
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 > **An OpenAI-compatible intelligent LLM Gateway with dynamic model routing, automatic fallback, and provider abstraction.**
 
