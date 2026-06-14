@@ -612,6 +612,106 @@ When the preferred model fails, RouteLLMESH automatically retries the next ranke
 
 ---
 
+# Docker Deployment
+
+RouteLLMESH is available as a pre-built Docker image, allowing you to get started without cloning the repository or building the project locally.
+
+## Pull the Latest Image
+
+```bash
+docker pull ath49/routellmesh:latest
+```
+
+## Create a `.env` File
+
+Create a `.env` file with the required configuration:
+
+```env
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/routellmesh
+
+REDIS_URL=redis://redis:6379/0
+
+OPENAI_API_KEY=your_openai_api_key
+
+GROQ_API_KEY=your_groq_api_key
+
+HOST=0.0.0.0
+
+PORT=8000
+
+LOG_LEVEL=INFO
+```
+
+## Run the Container
+
+```bash
+docker run \
+    --name routellmesh \
+    --env-file .env \
+    -p 8000:8000 \
+    ath49/routellmesh:latest
+```
+
+The API will be available at:
+
+```
+http://localhost:8000
+```
+
+Swagger UI:
+
+```
+http://localhost:8000/docs
+```
+
+OpenAPI Specification:
+
+```
+http://localhost:8000/openapi.json
+```
+
+---
+
+# Using Docker Compose (Recommended)
+
+The recommended deployment method is Docker Compose, which starts RouteLLMESH along with its required PostgreSQL and Redis services.
+
+```bash
+git clone https://github.com/ath34-tech/routeLLMESH.git
+
+cd routeLLMESH
+
+cp .env.example .env
+
+docker compose up -d
+```
+
+After startup, access the API at:
+
+```
+http://localhost:8000/docs
+```
+
+---
+
+# Docker Hub
+
+Docker Image:
+
+`ath49/routellmesh`
+
+Latest Tag:
+
+```bash
+docker pull ath49/routellmesh:latest
+```
+
+Versioned releases are also available:
+
+```bash
+docker pull ath49/routellmesh:v1.0.0
+```
+
 # Project Vision
 
 Modern AI applications should not be tightly coupled to a single provider or model.
