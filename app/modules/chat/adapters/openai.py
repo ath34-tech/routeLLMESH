@@ -62,7 +62,6 @@ class OpenAIAdapter(BaseAdapter):
                 headers=headers,
                 json=payload,
             )
-        print(response.json())
         response.raise_for_status()
 
         return response.json()

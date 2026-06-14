@@ -9,6 +9,8 @@ from app.modules.chat.provider_factory import ProviderFactory
 from app.modules.chat.normalizer import ResponseNormalizer
 from app.modules.chat.routing import RoutingEngine, RoutingOutcome
 import logging
+from app.core.circuit_breaker.repository import CircuitBreakerRepository
+from app.core.circuit_breaker.service import CircuitBreakerService
 
 logger = logging.getLogger(__name__)
 class ChatService:
@@ -21,7 +23,7 @@ class ChatService:
         self.model_repository = model_repository
         self.provider_repository = provider_repository
         self.redis = RedisRepository()
-
+        self.circuit_breaker=CircuitBreakerService(CircuitBreakerRepository())
     async def chat(self, request: ChatRequest):
         
         start_time = time.time()
@@ -37,8 +39,10 @@ class ChatService:
         routing_result = await RoutingEngine.route(request)
 
         last_exception = None
-
         for candidate in routing_result.candidate_models:
+            if not await self.circuit_breaker.allow_request(candidate.model_name):
+                logger.info("Circuit OPEN for %s. Skipping.",candidate.model_name)
+                continue
 
             request.model = candidate.model_name
 
@@ -137,7 +141,7 @@ class ChatService:
                 # ============================================
 
                 if request.stream:
-
+                    await self.circuit_breaker.record_success(candidate.model_name)
                     return adapter.stream_chat(
                         provider=provider,
                         model=model,
@@ -163,6 +167,8 @@ class ChatService:
                     candidate.model_name,
                 )
 
+
+                await self.circuit_breaker.record_success(candidate.model_name)
                 return normalized
 
             except Exception as exc:
@@ -171,7 +177,7 @@ class ChatService:
                     "Model %s failed. Trying next candidate.",
                     candidate.model_name,
                 )
-
+                await self.circuit_breaker.record_failure(candidate.model_name)
                 last_exception = exc
 
                 # Future:
