@@ -7,6 +7,7 @@ from app.core.lifespan import lifespan
 from app.core.logging import setup_logger
 
 
+
 # Initialize logger before app startup
 setup_logger(settings.LOG_LEVEL)
 

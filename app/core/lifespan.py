@@ -22,7 +22,7 @@ from app.modules.chat.routing import RoutingEngine
 async def lifespan(app: FastAPI):
 
     logger.info("===================================")
-    logger.info("Starting RouteLM")
+    logger.info("Starting routeLLMESH")
     logger.info("===================================")
 
     engine = create_async_engine(
@@ -140,11 +140,11 @@ async def lifespan(app: FastAPI):
 
         raise
 
-    logger.info("RouteLM Ready 🚀")
+    logger.info("routeLLMESH Ready 🚀")
 
     yield
 
-    logger.info("Shutting down RouteLM...")
+    logger.info("Shutting down routeLLMESH...")
 
     await http_client.aclose()
 
