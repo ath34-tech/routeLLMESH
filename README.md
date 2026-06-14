@@ -536,7 +536,7 @@ Try Candidate #1
 * Production-oriented architecture
 
 ---
-```markdown
+
 # Screenshots
 
 ## Swagger API Documentation
@@ -576,7 +576,7 @@ When the preferred model fails, RouteLLMESH automatically retries the next ranke
 <p align="center">
     <img src="docs/routeLLMesh4.png" width="1000">
 </p>
-```
+
 
 # Example Request
 
